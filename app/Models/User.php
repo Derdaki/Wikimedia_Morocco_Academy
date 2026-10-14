@@ -69,6 +69,13 @@ final class User
 
     public static function create(string $name, string $email, string $password, string $role): int
     {
+        $name = trim($name);
+        $email = mb_strtolower(trim($email));
+        if ($name === '' || mb_strlen($name) > 120 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 160 ||
+            !in_array($role, ['super_admin', 'editor'], true)) {
+            throw new \InvalidArgumentException('Invalid user details.');
+        }
+        self::validatePassword($password);
         $stmt = Database::pdo()->prepare(
             'INSERT INTO users (name, email, password_hash, role, is_active, created_at, updated_at)
              VALUES (:name, :email, :password_hash, :role, 1, NOW(), NOW())'
@@ -83,12 +90,51 @@ final class User
         return (int) Database::pdo()->lastInsertId();
     }
 
+    public static function setPassword(int $id, string $password): void
+    {
+        self::validatePassword($password);
+        if (!self::find($id)) throw new \LogicException('User not found.');
+        $stmt = Database::pdo()->prepare('UPDATE users SET password_hash = :hash, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => $id]);
+    }
+
+    private static function validatePassword(string $password): void
+    {
+        if (strlen($password) < 10 || strlen($password) > 72 || str_contains($password, "\0")) {
+            throw new \InvalidArgumentException('Password must contain 10 to 72 bytes and no null characters.');
+        }
+    }
+
+    public static function changeRole(int $id, string $role): void
+    {
+        if (!in_array($role, ['super_admin', 'editor'], true)) throw new \InvalidArgumentException('Invalid role.');
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            // Lock active administrators in the same order as deactivation to prevent lockout.
+            $admins = $pdo->query('SELECT id FROM users WHERE role = "super_admin" AND is_active = 1 ORDER BY id FOR UPDATE')->fetchAll();
+            $stmt = $pdo->prepare('SELECT * FROM users WHERE id = :id FOR UPDATE');
+            $stmt->execute(['id' => $id]);
+            $user = $stmt->fetch();
+            if (!$user) throw new \LogicException('User not found.');
+            if ($user['role'] === 'super_admin' && (int) $user['is_active'] === 1 && $role !== 'super_admin' && count($admins) <= 1) {
+                throw new \LogicException('Le dernier super administrateur doit rester actif.');
+            }
+            $stmt = $pdo->prepare('UPDATE users SET role = :role, updated_at = NOW() WHERE id = :id');
+            $stmt->execute(['role' => $role, 'id' => $id]);
+            $pdo->commit();
+        } catch (\Throwable $exception) {
+            $pdo->rollBack();
+            throw $exception;
+        }
+    }
+
     public static function toggle(int $id): void
     {
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         try {
-        $admins = $pdo->query('SELECT id FROM users WHERE role = "super_admin" AND is_active = 1 FOR UPDATE')->fetchAll();
+        $admins = $pdo->query('SELECT id FROM users WHERE role = "super_admin" AND is_active = 1 ORDER BY id FOR UPDATE')->fetchAll();
         $user = self::find($id);
         if ($user && $user['role'] === 'super_admin' && (int) $user['is_active'] === 1 && count($admins) <= 1) {
             throw new \LogicException('Le dernier super administrateur doit rester actif.');

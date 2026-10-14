@@ -1,5 +1,20 @@
 # Verification Record
 
+## Hackathon Onboarding Update: 2026-10-14
+
+Verified in the isolated `codex/hackathon-onboarding` checkout, not against real team accounts:
+
+- All 71 PHP files passed `php -l`; JavaScript application and Tailwind configuration passed `node --check`.
+- Windows PowerShell account-helper syntax was checked. Its create/reset test passed with mocked `Read-Host -AsSecureString` input, UTF-8 name transport, no password echo, and temporary Editor accounts.
+- The extended real HTTP/PDO integration suite passed 124 assertions on PHP 8.2.12 and MariaDB 10.4.32, port 3307, using the disposable `wikimedia_maroc_hackathon_test` database and an isolated development server on port 8086.
+- New coverage includes four independently created Editor accounts and logins, duplicate email rejection, promotion/demotion, last-active-admin demotion protection, Editor user-management denials, account-page protection, password validation/current-password/confirmation/CSRF, own-account targeting, old-password rejection, session revocation, CLI creation and operator password reset. Existing content/upload tests remain included.
+- Browser checks covered Users and My account in French/Arabic at 1366px and 390px: no document overflow, no unnamed fields, and no JavaScript console errors. Role saving succeeded in the browser. A disposable Editor logged into the dashboard and received access-denied pages for Users/Settings.
+- Found and fixed a Windows CLI issue: calling `stream_isatty()` again after buffered reads could discard remaining piped input. Interactive detection is now cached before reading, and piped setup does not print prompts/passwords.
+
+No real roster, credentials, `.env`, sessions, uploads, or private database data belongs in this update. The existing site on port 8085 and its real database were not modified by these branch tests. The earlier verification record below describes the initial release and is not a new Apache run of these account changes.
+
+Remaining limits: actual hidden keyboard interaction on each terminal, non-Windows `stty`, MySQL 8/MariaDB 10.6+, Apache with these new routes, shared HTTPS staging, email-based recovery, and production/concurrency/load verification were not exercised for this update. Temporary-password rotation is documented but not enforced by a first-login flag. Website MFA and finer Editor permissions are not implemented. A shared staging environment and actual contributor invitations/accounts still require agreed team identities and configuration.
+
 Date: 2026-10-14. Scope: the existing `wikimedia-maroc/` application only.
 
 ## Executed Successfully

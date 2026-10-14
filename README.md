@@ -2,6 +2,20 @@
 
 Native PHP 8.2 and MySQL implementation for a public Wikimedia Maroc website plus an administration dashboard. The project is intentionally framework-free and uses PDO, PHP sessions, reusable PHP views, CSRF protection, secure uploads, role-based administration, and a compiled CSS asset.
 
+## Hackathon Team — Start Here
+
+Five contributors, individual dashboard accounts, and reviewed feature branches:
+
+- [English team guide: architecture, Windows setup, testing, troubleshooting](docs/TEAM_GUIDE_EN.md)
+- [دليل الفريق بالعربية: التثبيت والعمل الجماعي](docs/TEAM_GUIDE_AR.md)
+- [Administrator onboarding, roles, individual accounts, password recovery](docs/ADMIN_GUIDE.md)
+- [Git and GitHub workflow](docs/GIT_WORKFLOW.md)
+- [Five-member hackathon task plan](docs/HACKATHON_TASKS.md)
+- [Contributor onboarding checklist](docs/ONBOARDING_CHECKLIST.md)
+- [Contribution guidelines](CONTRIBUTING.md) and [coding style](docs/CODING_STYLE.md)
+
+GitHub accounts are separate from website administrator accounts. Every local database is independent; pushing code does not synchronize MySQL, accounts, or uploads. On shared staging, the Team Lead is Super Administrator and the other four contributors should normally be Editors.
+
 ## What Is Included
 
 - Public website with homepage, projects, events, news, team, resources, contact, join page, language switcher, sitemap, and robots.txt.
@@ -48,13 +62,13 @@ The seed script inserts demonstration content only. Replace demo records before 
 Start the PHP development server from the project folder:
 
 ```bash
-php -d upload_max_filesize=4M -d post_max_size=6M -S 127.0.0.1:8080 -t public scripts/serve.php
+php -d upload_max_filesize=4M -d post_max_size=6M -S 127.0.0.1:8085 -t public scripts/serve.php
 ```
 
 Open:
 
-- Public site: `http://127.0.0.1:8080`
-- Admin login: `http://127.0.0.1:8080/admin/login`
+- Public site: `http://127.0.0.1:8085`
+- Admin login: `http://127.0.0.1:8085/admin/login`
 
 ## CSS Build
 
@@ -154,8 +168,8 @@ Set `APP_ENV=production`, `APP_URL` to the HTTPS domain root, and valid database
 From PowerShell:
 
 ```powershell
-Set-Location C:\Users\ilyas\Documents\Wikimedia-Project-Morocco\wikimedia-maroc
-Copy-Item .env.example .env
+Set-Location "$env:LOCALAPPDATA\WikimediaMarocDev\Wikimedia_Morocco_Academy"
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
 Create `wikimedia_maroc` in MySQL with `utf8mb4` encoding and configure `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in `.env`. The example credentials must match an account you provisioned. No administrator account is seeded.
@@ -167,10 +181,10 @@ php scripts/migrate.php
 php scripts/seed.php
 php scripts/create-admin.php
 php scripts/doctor.php
-php -d upload_max_filesize=4M -d post_max_size=6M -S 127.0.0.1:8080 -t public scripts/serve.php
+php -d upload_max_filesize=4M -d post_max_size=6M -S 127.0.0.1:8085 -t public scripts/serve.php
 ```
 
-If port 8080 is occupied, use another port and update `APP_URL` in `.env` to match. The website is at that URL and administration is at `/admin/login`.
+Clone into the writable location first, following the team guide. Set `APP_URL=http://127.0.0.1:8085` in `.env`. If port 8085 is occupied, use another port and update `APP_URL` to match. The website is at that URL and administration is at `/admin/login`.
 
 On this machine, native PHP and Node tools were unable to write inside the Documents checkout. `doctor.php` exposes this through its directory write checks. Uploads passed from a writable copy in the Windows temporary directory. Use a writable checkout outside the protected folder, or explicitly allow PHP and your build tools through Windows folder protection. No Windows protection settings were changed during verification. Session storage has a temporary-directory fallback; uploads require a writable `public/uploads` directory.
 
@@ -181,7 +195,8 @@ Use a separate MySQL/MariaDB database whose name ends in `_test`. Never run the 
 ```powershell
 $env:DB_DATABASE = 'wikimedia_maroc_test'
 $env:DB_PORT = '3306'
-$env:APP_URL = 'http://127.0.0.1:8085'
+$env:APP_URL = 'http://127.0.0.1:8086'
+$env:SESSION_NAME = 'wmma_test_session'
 ```
 
 Credentials are read from `.env` or process environment variables. Process environment overrides `.env`. Run the migration and seed in one terminal, then start the server:
@@ -189,13 +204,13 @@ Credentials are read from `.env` or process environment variables. Process envir
 ```powershell
 php scripts/migrate.php
 php scripts/seed.php
-php -d upload_max_filesize=4M -d post_max_size=6M -S 127.0.0.1:8085 -t public scripts/serve.php
+php -d upload_max_filesize=4M -d post_max_size=6M -S 127.0.0.1:8086 -t public scripts/serve.php
 ```
 
 In the other configured terminal:
 
 ```powershell
-$env:TEST_BASE_URL = 'http://127.0.0.1:8085'
+$env:TEST_BASE_URL = 'http://127.0.0.1:8086'
 php tests/run.php
 ```
 
@@ -210,6 +225,8 @@ php scripts/create-admin.php
 ```
 
 The application does not ship with hardcoded admin credentials.
+
+Interactive Windows setup uses the hidden/confirmed PowerShell helper (`powershell -NoProfile -File scripts/admin-account.ps1 -Action create` if needed). A Super Administrator can then create the four individual Editors and change roles under `/admin/users`. Every signed-in user can change their own password under `/admin/account`. Trusted server operators can recover an existing account through `php scripts/reset-admin-password.php`; no public email-reset service is provided. Password changes revoke old sessions, and upgrading this branch signs out sessions created without the new password fingerprint. No schema migration is required for these account improvements. See [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md).
 
 ## Verification
 

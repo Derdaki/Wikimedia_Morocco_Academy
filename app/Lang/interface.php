@@ -1,6 +1,23 @@
 <?php
 
 return [
+    'My account' => ['fr' => 'Mon compte', 'ar' => 'حسابي'],
+    'Change password' => ['fr' => 'Changer le mot de passe', 'ar' => 'تغيير كلمة المرور'],
+    'Current password' => ['fr' => 'Mot de passe actuel', 'ar' => 'كلمة المرور الحالية'],
+    'New password' => ['fr' => 'Nouveau mot de passe', 'ar' => 'كلمة المرور الجديدة'],
+    'Confirm password' => ['fr' => 'Confirmer le mot de passe', 'ar' => 'تأكيد كلمة المرور'],
+    'Current password is incorrect.' => ['fr' => 'Le mot de passe actuel est incorrect.', 'ar' => 'كلمة المرور الحالية غير صحيحة.'],
+    'Passwords do not match.' => ['fr' => 'Les mots de passe ne correspondent pas.', 'ar' => 'كلمتا المرور غير متطابقتين.'],
+    'Password must contain 10 to 72 bytes and no null characters.' => ['fr' => 'Le mot de passe doit contenir de 10 à 72 octets, sans caractère nul.', 'ar' => 'يجب أن تكون كلمة المرور من 10 إلى 72 بايت وبدون محرف فارغ.'],
+    'Password changed. Sign in again.' => ['fr' => 'Mot de passe modifié. Reconnectez-vous.', 'ar' => 'تم تغيير كلمة المرور. سجل الدخول من جديد.'],
+    'Save role' => ['fr' => 'Enregistrer le rôle', 'ar' => 'حفظ الصلاحية'],
+    'Role updated.' => ['fr' => 'Rôle mis à jour.', 'ar' => 'تم تحديث الصلاحية.'],
+    'Invalid role.' => ['fr' => 'Rôle invalide.', 'ar' => 'صلاحية غير صالحة.'],
+    'User not found.' => ['fr' => 'Utilisateur introuvable.', 'ar' => 'المستخدم غير موجود.'],
+    'Deactivate' => ['fr' => 'Désactiver', 'ar' => 'تعطيل'],
+    'Activate' => ['fr' => 'Activer', 'ar' => 'تفعيل'],
+    'Never' => ['fr' => 'Jamais', 'ar' => 'لم يسجل الدخول بعد'],
+    'Le dernier super administrateur doit rester actif.' => ['fr' => 'Le dernier super administrateur doit rester actif.', 'ar' => 'يجب إبقاء مسؤول رئيسي نشط واحد على الأقل.'],
     'La connaissance libre, au cœur du Maroc.' => ['fr' => 'La connaissance libre, au cœur du Maroc.', 'ar' => 'المعرفة الحرة في قلب المغرب.'],
     'Ensemble, partageons le patrimoine, la culture et le savoir du Maroc avec le monde.' => ['fr' => 'Ensemble, partageons le patrimoine, la culture et le savoir du Maroc avec le monde.', 'ar' => 'معا نتشارك تراث المغرب وثقافته ومعرفته مع العالم.'],
     'Agir pour la connaissance libre' => ['fr' => 'Agir pour la connaissance libre', 'ar' => 'نعمل من أجل المعرفة الحرة'],
