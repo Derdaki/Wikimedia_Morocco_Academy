@@ -19,6 +19,7 @@ $prefix = 'verify-' . bin2hex(random_bytes(4));
 $password = bin2hex(random_bytes(16));
 $adminId = User::create('Verification admin', $prefix . '@example.test', $password, 'super_admin');
 $editorId = User::create('Verification editor', $prefix . '-editor@example.test', $password, 'editor');
+$createdUserIds = [$adminId, $editorId];
 $jars = [];
 $uploaded = [];
 $passed = 0;
@@ -56,6 +57,15 @@ function countSlug(string $table, string $slug): int {
     $stmt = Database::pdo()->prepare("SELECT COUNT(*) FROM {$table} WHERE slug = ?");
     $stmt->execute([$slug]); return (int) $stmt->fetchColumn();
 }
+function accountCli(string $script, array $lines): array {
+    $process = proc_open([PHP_BINARY, BASE_PATH . '/scripts/' . $script],
+        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, BASE_PATH);
+    if (!is_resource($process)) throw new RuntimeException('Cannot start account CLI test.');
+    fwrite($pipes[0], implode("\n", $lines) . "\n"); fclose($pipes[0]);
+    $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+    fclose($pipes[1]); fclose($pipes[2]);
+    return ['status' => proc_close($process), 'output' => $output];
+}
 try {
     check(!(bool) $pdo->getAttribute(PDO::ATTR_EMULATE_PREPARES), 'Native PDO prepared statements');
     foreach (['/', '/evenements', '/nos-projets', '/actualites', '/a-propos', '/notre-equipe', '/ressources', '/contact', '/rejoindre-la-communaute', '/sitemap.xml', '/robots.txt', '/assets/css/app.css', '/assets/js/app.js'] as $path) {
@@ -75,6 +85,81 @@ try {
     foreach (['events', 'projects', 'news', 'team', 'resources', 'media', 'contact-messages', 'users', 'settings'] as $section) {
         check(request('/admin/' . $section, null, 'admin')['status'] === 200, 'Admin route ' . $section);
     }
+    check(request('/admin/account', null, 'anonymous')['status'] === 302, 'Personal account page requires authentication');
+    check(request('/register')['status'] === 404, 'No public administrator registration');
+    $members = [];
+    for ($i = 1; $i <= 4; $i++) {
+        $email = $prefix . '-member-' . $i . '@example.test';
+        request('/admin/users', ['_token' => token('/admin/users'), 'name' => 'Contributor ' . $i,
+            'email' => $email, 'password' => $password, 'role' => 'editor'], 'admin');
+        $member = User::findByEmail($email);
+        if (!$member) throw new RuntimeException('Contributor account was not created.');
+        $members[$i] = (int) $member['id']; $createdUserIds[] = (int) $member['id'];
+        check($member['role'] === 'editor' && password_verify($password, $member['password_hash']) && $member['password_hash'] !== $password,
+            'Individual contributor ' . $i . ' created with Editor role and hashed password');
+        request('/admin/login', ['_token' => token('/admin/login', 'member-' . $i), 'email' => $email, 'password' => $password], 'member-' . $i);
+        check(request('/admin', null, 'member-' . $i)['status'] === 200, 'Individual contributor ' . $i . ' dashboard login');
+    }
+    $memberId = $members[1];
+    check(request('/admin/users', ['_token' => token('/admin/account', 'member-1'), 'name' => 'Forbidden',
+        'email' => $prefix . '-forbidden@example.test', 'password' => $password, 'role' => 'super_admin'], 'member-1')['status'] === 403 &&
+        !User::findByEmail($prefix . '-forbidden@example.test'), 'Editor cannot create Super Administrators');
+    check(request('/admin/users/' . $memberId . '/role', ['_token' => token('/admin/account', 'member-1'), 'role' => 'super_admin'], 'member-1')['status'] === 403 &&
+        request('/admin/users/' . $adminId . '/toggle', ['_token' => token('/admin/account', 'member-1')], 'member-1')['status'] === 403,
+        'Editor cannot change roles or deactivate accounts');
+    check(request('/admin/users/' . $memberId . '/role', ['role' => 'super_admin'], 'admin')['status'] === 403, 'Role changes require CSRF');
+    request('/admin/users/' . $memberId . '/role', ['_token' => token('/admin/users'), 'role' => 'owner'], 'admin');
+    check(User::find($memberId)['role'] === 'editor', 'Unknown roles rejected');
+    request('/admin/users/' . $adminId . '/role', ['_token' => token('/admin/users'), 'role' => 'editor'], 'admin');
+    check(User::find($adminId)['role'] === 'super_admin', 'Last active Super Administrator cannot be demoted');
+    request('/admin/users/' . $memberId . '/role', ['_token' => token('/admin/users'), 'role' => 'super_admin'], 'admin');
+    check(request('/admin/users', null, 'member-1')['status'] === 200, 'Promotion applies to the existing authenticated session');
+    request('/admin/users/' . $memberId . '/role', ['_token' => token('/admin/users'), 'role' => 'editor'], 'admin');
+    check(request('/admin/users', null, 'member-1')['status'] === 403, 'Demotion removes permissions on the next request');
+    request('/admin/users', ['_token' => token('/admin/users'), 'name' => 'Duplicate',
+        'email' => $prefix . '-member-1@example.test', 'password' => $password, 'role' => 'editor'], 'admin');
+    check(count(array_filter(User::all(), fn ($u) => $u['email'] === $prefix . '-member-1@example.test')) === 1, 'Duplicate contributor email rejected');
+
+    $memberEmail = $prefix . '-member-2@example.test';
+    request('/admin/login', ['_token' => token('/admin/login', 'member-2-other'), 'email' => $memberEmail, 'password' => $password], 'member-2-other');
+    $newPassword = bin2hex(random_bytes(16));
+    $passwordData = ['_token' => token('/admin/account', 'member-2'), 'current_password' => 'incorrect',
+        'new_password' => $newPassword, 'password_confirmation' => $newPassword];
+    request('/admin/account/password', $passwordData, 'member-2');
+    check(password_verify($password, User::find($members[2])['password_hash']), 'Password change requires the correct current password');
+    $passwordData['current_password'] = $password; $passwordData['password_confirmation'] = 'mismatch';
+    request('/admin/account/password', $passwordData, 'member-2');
+    check(password_verify($password, User::find($members[2])['password_hash']), 'Password confirmation enforced');
+    $passwordData['new_password'] = $passwordData['password_confirmation'] = str_repeat('x', 8);
+    request('/admin/account/password', $passwordData, 'member-2');
+    check(password_verify($password, User::find($members[2])['password_hash']), 'Short replacement password rejected');
+    $passwordData['new_password'] = $passwordData['password_confirmation'] = str_repeat('é', 40);
+    request('/admin/account/password', $passwordData, 'member-2');
+    check(password_verify($password, User::find($members[2])['password_hash']), 'Password byte limit enforced for multibyte text');
+    $passwordData['new_password'] = $passwordData['password_confirmation'] = $newPassword;
+    $withoutToken = $passwordData; unset($withoutToken['_token']);
+    check(request('/admin/account/password', $withoutToken, 'member-2')['status'] === 403, 'Password change requires CSRF');
+    $passwordData['user_id'] = (string) $adminId;
+    $changed = request('/admin/account/password', $passwordData, 'member-2');
+    check($changed['status'] === 302 && password_verify($newPassword, User::find($members[2])['password_hash']) &&
+        password_verify($password, User::find($adminId)['password_hash']), 'Password changes affect only the authenticated account');
+    check(request('/admin', null, 'member-2')['status'] === 302 && request('/admin', null, 'member-2-other')['status'] === 302,
+        'Password change revokes current and other sessions');
+    request('/admin/login', ['_token' => token('/admin/login', 'member-2'), 'email' => $memberEmail, 'password' => $password], 'member-2');
+    check(request('/admin', null, 'member-2')['status'] === 302, 'Old password no longer logs in');
+    request('/admin/login', ['_token' => token('/admin/login', 'member-2'), 'email' => $memberEmail, 'password' => $newPassword], 'member-2');
+    check(request('/admin', null, 'member-2')['status'] === 200, 'Contributor logs in with their new password');
+    $cliEmail = $prefix . '-cli@example.test';
+    $cli = accountCli('create-admin.php', ['CLI contributor', $cliEmail, $password, 'editor']);
+    $cliUser = User::findByEmail($cliEmail);
+    if ($cliUser) $createdUserIds[] = (int) $cliUser['id'];
+    check($cli['status'] === 0 && $cliUser && $cliUser['role'] === 'editor' && !str_contains($cli['output'], $password),
+        'Existing CLI creates an account without echoing its supplied password');
+    $resetPassword = bin2hex(random_bytes(16));
+    $cli = accountCli('reset-admin-password.php', [$memberEmail, $resetPassword]);
+    check($cli['status'] === 0 && password_verify($resetPassword, User::find($members[2])['password_hash']) &&
+        User::find($members[2])['role'] === 'editor' && !str_contains($cli['output'], $resetPassword), 'Operator CLI reset preserves role and hides password');
+    check(request('/admin', null, 'member-2')['status'] === 302, 'CLI password reset revokes existing sessions');
     $csrf = token('/admin/events/create');
     $event = ['_token' => $csrf, 'title_fr' => '<script>alert(1)</script> ' . $prefix, 'title_ar' => 'فعالية اختبار', 'slug' => $prefix,
         'short_description_fr' => 'Test résumé', 'description_fr' => 'Test description', 'start_at' => date('Y-m-d', strtotime('+1 day')) . 'T10:00', 'end_at' => date('Y-m-d', strtotime('+1 day')) . 'T13:00',
@@ -208,8 +293,9 @@ try {
     $stmt = $pdo->prepare('DELETE FROM media WHERE original_name LIKE ?'); $stmt->execute([$prefix . '%']);
     $stmt = $pdo->prepare('DELETE FROM contact_messages WHERE name = ?'); $stmt->execute([$prefix]);
     $stmt = $pdo->prepare('DELETE FROM login_attempts WHERE email LIKE ?'); $stmt->execute([$prefix . '%']);
-    $stmt = $pdo->prepare('DELETE FROM activity_logs WHERE user_id IN (?, ?)'); $stmt->execute([$adminId, $editorId]);
-    $stmt = $pdo->prepare('DELETE FROM users WHERE id IN (?, ?)'); $stmt->execute([$adminId, $editorId]);
+    $placeholders = implode(',', array_fill(0, count($createdUserIds), '?'));
+    $stmt = $pdo->prepare("DELETE FROM activity_logs WHERE user_id IN ({$placeholders})"); $stmt->execute($createdUserIds);
+    $stmt = $pdo->prepare("DELETE FROM users WHERE id IN ({$placeholders})"); $stmt->execute($createdUserIds);
     foreach (array_merge(array_values($jars), $uploaded) as $file) if (is_file($file)) unlink($file);
 }
 echo "Results: {$passed} passed, {$failed} failed.\n";

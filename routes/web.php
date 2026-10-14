@@ -54,6 +54,9 @@ $router->post('/admin/contact-messages/{id}/delete', [ContactController::class, 
 $router->get('/admin/users', [UserController::class, 'index']);
 $router->post('/admin/users', [UserController::class, 'store']);
 $router->post('/admin/users/{id}/toggle', [UserController::class, 'toggle']);
+$router->post('/admin/users/{id}/role', [UserController::class, 'updateRole']);
+$router->get('/admin/account', [UserController::class, 'account']);
+$router->post('/admin/account/password', [UserController::class, 'updatePassword']);
 $router->get('/admin/settings', [SettingsController::class, 'edit']);
 $router->post('/admin/settings', [SettingsController::class, 'update']);
 

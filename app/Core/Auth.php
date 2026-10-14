@@ -17,8 +17,9 @@ final class Auth
         if (!empty($_SESSION['user_id'])) {
             $user = User::find((int) $_SESSION['user_id']);
             if (!$user || (int) $user['is_active'] !== 1 ||
+                !hash_equals(hash('sha256', (string) $user['password_hash']), (string) ($_SESSION['password_fingerprint'] ?? '')) ||
                 time() - (int) ($_SESSION['last_activity'] ?? 0) > 3600) {
-                unset($_SESSION['user_id'], $_SESSION['last_activity']);
+                unset($_SESSION['user_id'], $_SESSION['last_activity'], $_SESSION['password_fingerprint']);
                 session_regenerate_id(true);
                 return;
             }
@@ -47,6 +48,7 @@ final class Auth
 
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['password_fingerprint'] = hash('sha256', (string) $user['password_hash']);
         $_SESSION['last_activity'] = time();
         unset($_SESSION['_csrf_token']);
         self::$user = $user;
@@ -62,7 +64,7 @@ final class Auth
             activity('logout', 'users', (int) self::$user['id'], 'Déconnexion administrateur');
         }
 
-        unset($_SESSION['user_id'], $_SESSION['last_activity'], $_SESSION['_csrf_token'], $_SESSION['_old']);
+        unset($_SESSION['user_id'], $_SESSION['last_activity'], $_SESSION['password_fingerprint'], $_SESSION['_csrf_token'], $_SESSION['_old']);
         session_regenerate_id(true);
         self::$user = null;
     }

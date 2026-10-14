@@ -5,11 +5,11 @@
     <form class="filters" method="post" action="<?= e(url('/admin/users')) ?>" style="grid-template-columns:1fr 1fr 1fr 1fr auto">
         <?= csrf_field() ?>
         <label class="sr-only" for="user_name"><?= e(ui('Name')) ?></label>
-        <input class="form-control" id="user_name" name="name" placeholder="<?= e(ui('Name')) ?>" required>
+        <input class="form-control" id="user_name" name="name" placeholder="<?= e(ui('Name')) ?>" maxlength="120" autocomplete="name" required>
         <label class="sr-only" for="user_email"><?= e(ui('Email')) ?></label>
-        <input class="form-control" id="user_email" name="email" type="email" placeholder="<?= e(ui('Email')) ?>" required>
+        <input class="form-control" id="user_email" name="email" type="email" placeholder="<?= e(ui('Email')) ?>" maxlength="160" autocomplete="off" required>
         <label class="sr-only" for="user_password"><?= e(ui('Password')) ?></label>
-        <input class="form-control" id="user_password" name="password" type="password" placeholder="<?= e(ui('Password')) ?>" required>
+        <input class="form-control" id="user_password" name="password" type="password" placeholder="<?= e(ui('Password')) ?>" minlength="10" maxlength="72" autocomplete="new-password" required>
         <label class="sr-only" for="user_role"><?= e(ui('Role')) ?></label>
         <select class="form-control" id="user_role" name="role">
             <option value="editor"><?= e(ui('Editor')) ?></option>
@@ -27,13 +27,23 @@
             <tr>
                 <td><?= e($user['name']) ?></td>
                 <td><?= e($user['email']) ?></td>
-                <td><?= e($user['role']) ?></td>
-                <td><span class="badge"><?= (int) $user['is_active'] ? 'active' : 'disabled' ?></span></td>
-                <td><?= e($user['last_login_at'] ? format_date($user['last_login_at'], 'd M Y H:i') : 'Never') ?></td>
+                <td>
+                    <form class="row-actions" style="min-width:272px" method="post" action="<?= e(url('/admin/users/' . $user['id'] . '/role')) ?>">
+                        <?= csrf_field() ?>
+                        <label class="sr-only" for="role_<?= (int) $user['id'] ?>"><?= e(ui('Role') . ': ' . $user['name']) ?></label>
+                        <select class="form-control" id="role_<?= (int) $user['id'] ?>" name="role">
+                            <option value="editor" <?= $user['role'] === 'editor' ? 'selected' : '' ?>><?= e(ui('Editor')) ?></option>
+                            <option value="super_admin" <?= $user['role'] === 'super_admin' ? 'selected' : '' ?>><?= e(ui('Super Administrator')) ?></option>
+                        </select>
+                        <button class="btn btn-small btn-ghost" type="submit" title="<?= e(ui('Save role')) ?>" aria-label="<?= e(ui('Save role') . ': ' . $user['name']) ?>"><?= icon('check') ?></button>
+                    </form>
+                </td>
+                <td><span class="badge"><?= e(ui((int) $user['is_active'] ? 'active' : 'disabled')) ?></span></td>
+                <td><?= e($user['last_login_at'] ? format_date($user['last_login_at'], 'd M Y H:i') : ui('Never')) ?></td>
                 <td>
                     <form method="post" action="<?= e(url('/admin/users/' . $user['id'] . '/toggle')) ?>">
                         <?= csrf_field() ?>
-                        <button class="btn btn-small btn-ghost" type="submit"><?= e(ui('Toggle')) ?></button>
+                        <button class="btn btn-small btn-ghost" style="white-space:nowrap" type="submit"><?= e(ui((int) $user['is_active'] ? 'Deactivate' : 'Activate')) ?></button>
                     </form>
                 </td>
             </tr>

@@ -14,6 +14,7 @@ $nav = [
     '/admin/contact-messages' => ['Contact Messages', 'mail'],
     '/admin/users' => ['Users', 'shield'],
     '/admin/settings' => ['Website Settings', 'settings'],
+    '/admin/account' => ['My account', 'lock'],
 ];
 ?>
 <!doctype html>
