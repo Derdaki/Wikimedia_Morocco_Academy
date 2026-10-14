@@ -1,0 +1,15 @@
+Options -Indexes
+<IfModule php_module>
+    php_flag engine off
+</IfModule>
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Security-Policy "default-src 'none'; sandbox"
+    <FilesMatch "\.pdf$">
+        Header set Content-Disposition "attachment"
+    </FilesMatch>
+</IfModule>
+
+<FilesMatch "\.(php|phtml|phar|cgi|pl|asp|aspx|jsp|sh|bat|cmd|exe)$">
+    Require all denied
+</FilesMatch>

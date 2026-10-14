@@ -1,0 +1,13 @@
+{
+  "name": "wikimedia-maroc-cms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native PHP and MySQL website and administration dashboard for Wikimedia Maroc.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./resources/css/app.css -o ./public/assets/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./resources/css/app.css -o ./public/assets/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}
